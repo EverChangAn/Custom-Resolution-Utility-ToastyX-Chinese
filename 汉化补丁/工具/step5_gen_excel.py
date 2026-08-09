@@ -1,0 +1,297 @@
+# -*- coding: utf-8 -*-
+"""step5: 生成 CRU 中英对照 Excel，预填建议译文供用户校对"""
+import csv, os
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+RAW_CSV = r'C:\Users\Administrator\WorkBuddy\CRU汉化\汉化工作区\strings_raw.csv'
+OUT = r'C:\Users\Administrator\WorkBuddy\CRU汉化\汉化工作区\CRU翻译对照表.xlsx'
+
+# ============ 建议译文（专业术语按 EDID/显示器行业标准） ============
+T = {
+    'Custom Resolution Utility 1.5.3 by ToastyX': '自定义分辨率工具 1.5.3 by ToastyX',
+    ' Physical display enclosures ': ' 物理显示器围框 ',
+    ' Display stream compression ': ' 显示流压缩（DSC） ',
+    '30-bit deep color (10 bpc)': '30 位深色（10 bpc）',
+    '36-bit deep color (12 bpc)': '36 位深色（12 bpc）',
+    '48-bit deep color (16 bpc)': '48 位深色（16 bpc）',
+    ' Name (13 characters max) ': ' 名称（最多 13 个字符） ',
+    ' Established resolutions ': ' 标准分辨率 ',
+    ' Source physical address ': ' 源物理地址 ',
+    'Include if slot available': '有可用插槽时包含',
+    ' YCbCr 4:2:0 deep color ': ' YCbCr 4:2:0 深色 ',
+    'Include interlaced info:': '包含隔行信息：',
+    ' Multiple-tile behavior ': ' 多拼接行为 ',
+    ' Native resolution (PT) ': ' 原生分辨率（PT） ',
+    'Default extension block': '默认扩展块',
+    ' Variable refresh rate ': ' 可变刷新率（VRR） ',
+    'Traditional gamma - SDR': '传统伽马 - SDR',
+    'Traditional gamma - HDR': '传统伽马 - HDR',
+    'Front left/right center': '前置左/右中置',
+    'Low frequency effects 2': '低频效果 2（LFE2）',
+    'Bottom front left/right': '底部前置左/右',
+    'Top left/right surround': '顶部左/右环绕',
+    'Tiled display topology': '拼接显示拓扑',
+    ' Detailed resolutions ': ' 详细分辨率 ',
+    ' Standard resolutions ': ' 标准分辨率 ',
+    'Content bpc indication': '内容 bpc 指示',
+    'YCbCr 4:4:4 deep color': 'YCbCr 4:4:4 深色',
+    'Supports dual-link DVI': '支持双链路 DVI',
+    'Rear left/right center': '后置左/右中置',
+    'Tiled Display Topology': '拼接显示拓扑',
+    ' Single-tile behavior ': ' 单拼接行为 ',
+    ' Bezel size in pixels ': ' 边框宽度（像素） ',
+    '22.2-channel System H': '22.2 声道 System H',
+    'Implicit and explicit': '隐式与显式',
+    ' TMDS character rate ': ' TMDS 字符速率 ',
+    'Auto low-latency mode': '自动低延迟模式（ALLM）',
+    'Include latency info:': '包含延迟信息：',
+    'Low frequency effects': '低频效果（LFE）',
+    'Front left/right wide': '前置左/右加宽',
+    'Displayed at location': '显示于本位置',
+    'Scaled to fit display': '缩放以适配显示',
+    'Cloned to other tiles': '复制到其他拼接屏',
+    ' TV resolutions (CE) ': ' 电视分辨率（CE） ',
+    ' PC resolutions (IT) ': ' PC 分辨率（IT） ',
+    'Use TV/PC information': '使用 TV/PC 信息',
+    'Detailed resolutions': '详细分辨率',
+    ' Multichannel audio ': ' 多声道音频 ',
+    'Detailed Resolutions': '详细分辨率',
+    'Read request capable': '支持读取请求',
+    '<= 340 Mcsc scramble': '≤ 340 Mcsc 加扰',
+    ' Transfer functions ': ' 传输函数 ',
+    'Maximum color depth:': '最大色深：',
+    'Top front left/right': '顶部前置左/右',
+    'Selectable RGB range': '可选 RGB 范围',
+    'Selectable YCC range': '可选 YCC 范围',
+    'HDR static metadata': 'HDR 静态元数据',
+    'Detailed Resolution': '详细分辨率',
+    'FAPA start location': 'FAPA 起始位置',
+    'Maximum TMDS clock:': '最大 TMDS 时钟：',
+    'HDR Static Metadata': 'HDR 静态元数据',
+    'Left/right surround': '左/右环绕',
+    'Top side left/right': '顶部侧面左/右',
+    'Top back left/right': '顶部后置左/右',
+    'Bottom front center': '底部前置中置',
+    'Standard Resolution': '标准分辨率',
+    'Selectable overscan': '可选择过扫描',
+    ' Maximum bit rate ': ' 最大比特率 ',
+    ' Extension blocks ': ' 扩展块 ',
+    ' Maximum FRL rate ': ' 最大 FRL 速率 ',
+    ' HDMI resolutions ': ' HDMI 分辨率 ',
+    'Display Properties': '显示属性',
+    'Maximum FRL rate:': '最大 FRL 速率：',
+    'Supports ACP/ISRC': '支持 ACP/ISRC',
+    ' Static metadata ': ' 静态元数据 ',
+    ' Number of tiles ': ' 拼接屏数量 ',
+    '4:2:0 resolutions': '4:2:0 分辨率',
+    'HDMI 2.x support': 'HDMI 2.x 支持',
+    'Video capability': '视频能力',
+    'HDMI 2.x Support': 'HDMI 2.x 支持',
+    'Independent view': '独立视图',
+    '3D OSD disparity': '3D OSD 视差',
+    'Max chunk total:': '最大块总数：',
+    'Hybrid Log-Gamma': '混合对数伽马（HLG）',
+    'Max pixel clock:': '最大像素时钟：',
+    'Front left/right': '前置左/右',
+    'Top front center': '顶部前置中置',
+    ' TV resolutions ': ' 电视分辨率 ',
+    'Video Capability': '视频能力',
+    ' Frame lengths ': ' 帧长度 ',
+    ' MPEG Surround ': ' MPEG 环绕 ',
+    ' Audio formats ': ' 音频格式 ',
+    'Actual: – kHz': '实际：– kHz',
+    'Actual: – MHz': '实际：– MHz',
+    'Extension Block': '扩展块',
+    '30-bit (10 bpc)': '30 位（10 bpc）',
+    '36-bit (12 bpc)': '36 位（12 bpc）',
+    '48-bit (16 bpc)': '48 位（16 bpc）',
+    'Maximum slices:': '最大切片数：',
+    'HDMI Resolution': 'HDMI 分辨率',
+    ' Color formats ': ' 色彩格式 ',
+    ' Content types ': ' 内容类型 ',
+    ' Serial number ': ' 序列号 ',
+    ' Speaker setup ': ' 扬声器设置 ',
+    'Rear left/right': '后置左/右',
+    'Top back center': '顶部后置中置',
+    'Side left/right': '侧面左/右',
+    ' Tile location ': ' 拼接屏位置 ',
+    'Not overscanned': '未过扫描',
+    'Add Data Block': '添加数据块',
+    'TV resolutions': '电视分辨率',
+    'FreeSync range': 'FreeSync 范围',
+    ' Sample rates ': ' 采样率 ',
+    'Low complexity': '低复杂度',
+    'Sync polarity:': '同步极性：',
+    'Actual: – Hz': '实际：– Hz',
+    'FreeSync Range': 'FreeSync 范围',
+    ' Refresh rate ': ' 刷新率 ',
+    'Negative M VRR': '负 M VRR',
+    ' 2.1 features ': ' 2.1 特性 ',
+    'Max luminance:': '最大亮度：',
+    'Max frame-avg:': '最大帧平均：',
+    'Min luminance:': '最小亮度：',
+    ' Range limits ': ' 范围限制 ',
+    'TV Resolutions': '电视分辨率',
+    ' Quantization ': ' 量化 ',
+    'Audio formats': '音频格式',
+    'Speaker setup': '扬声器设置',
+    'Max channels:': '最大声道数：',
+    'Implicit only': '仅隐式',
+    'Audio Formats': '音频格式',
+    ' Colorimetry ': ' 色度学 ',
+    'Refresh rate:': '刷新率：',
+    ' Data blocks ': ' 数据块 ',
+    'Speaker Setup': '扬声器设置',
+    ' Topology ID ': ' 拓扑 ID ',
+    'TV Resolution': '电视分辨率',
+    'Native format': '原生格式',
+    'Not supported': '不支持',
+    'HDMI support': 'HDMI 支持',
+    'Audio Format': '音频格式',
+    ' Bit depths ': ' 位深 ',
+    '1024 samples': '1024 采样',
+    ' Parameters ': ' 参数 ',
+    'Front porch:': '前沿：',
+    'Pixel clock:': '像素时钟：',
+    'SCDC present': '支持 SCDC',
+    'Fast Vactive': '快速 Vactive',
+    ' Resolution ': ' 分辨率 ',
+    'HDMI Support': 'HDMI 支持',
+    ' TMDS clock ': ' TMDS 时钟 ',
+    'ID serial #:': 'ID 序列号：',
+    'Front center': '前置中置',
+    'Colorimetry': '色度学',
+    '960 samples': '960 采样',
+    ' Extension ': ' 扩展 ',
+    'Default RGB': '默认 RGB',
+    'Sync width:': '同步宽度：',
+    'Back porch:': '后沿：',
+    ' Frequency ': ' 频率 ',
+    'Horizontal:': '水平：',
+    ' Luminance ': ' 亮度 ',
+    ' Device ID ': ' 设备 ID ',
+    'Rear center': '后置中置',
+    'Product ID:': '产品 ID：',
+    ' Tile size ': ' 拼接屏尺寸 ',
+    'Multiplier:': '倍率：',
+    'Overscanned': '已过扫描',
+    ' Profiles ': ' 配置文件 ',
+    'Delete all': '全部删除',
+    ' Metadata ': ' 元数据 ',
+    'CommonForm': 'CommonForm',
+    'Horizontal': '水平',
+    'Interlaced': '隔行',
+    ' Features ': ' 特性 ',
+    'Cinema VRR': '影院 VRR',
+    'Top center': '顶部中置',
+    'Vendor ID:': '厂商 ID：',
+    ' Profile ': ' 配置文件 ',
+    'Blanking:': '消隐：',
+    'Preferred': '首选',
+    'Import...': '导入...',
+    'Export...': '导出...',
+    'Dual view': '双视图',
+    ' Latency ': ' 延迟 ',
+    ' Format ': ' 格式 ',
+    'Baseline': '基线',
+    'Vertical': '垂直',
+    'Maximum:': '最大值：',
+    'Graphics': '图形',
+    'Multiple': '多个',
+    ' Flags ': ' 标志 ',
+    'Edit...': '编辑...',
+    'Timing:': '时序：',
+    'Active:': '有效：',
+    'M delta': 'M 差值',
+    'All bpp': '全部 bpp',
+    'Format:': '格式：',
+    'V rate:': '垂直速率：',
+    'H rate:': '水平速率：',
+    ' Type ': ' 类型 ',
+    'Cancel': '取消',
+    'Level:': '级别：',
+    '16-bit': '16 位',
+    '20-bit': '20 位',
+    '24-bit': '24 位',
+    'Add...': '添加...',
+    'Delete': '删除',
+    'Total:': '总计：',
+    'pixels': '像素',
+    'Range:': '范围：',
+    'Cinema': '影院',
+    'Video:': '视频：',
+    'Audio:': '音频：',
+    'Type 1': '类型 1',
+    'Stereo': '立体声',
+    'Single': '单个',
+    'Reset': '重置',
+    'Paste': '粘贴',
+    'lines': '行',
+    'Type:': '类型：',
+    'Code:': '代码：',
+    'Photo': '照片',
+    'Other': '其他',
+    'Copy': '复制',
+    'None': '无',
+    'Game': '游戏',
+    'All': '全部',
+    'ID:': 'ID：',
+    'OK': '确定',
+    'Add Data Block': '添加数据块',
+    'kbit/s': 'kbit/s',
+    'dB': 'dB',
+}
+
+# ============ 生成 Excel ============
+wb = Workbook()
+ws = wb.active
+ws.title = '翻译对照表'
+
+headers = ['序号', '英文原文', '建议译文', '出现文件', '属性', '原始字节长度', '备注']
+ws.append(headers)
+
+# 表头样式
+hfill = PatternFill('solid', fgColor='1F4E79')
+hfont = Font(bold=True, color='FFFFFF')
+for c in ws[1]:
+    c.fill = hfill
+    c.font = hfont
+    c.alignment = Alignment(horizontal='center', vertical='center')
+
+thin = Side(style='thin', color='CCCCCC')
+border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+rows = list(csv.reader(open(RAW_CSV, encoding='utf-8-sig')))
+n = 0
+untranslated = 0
+for i, r in enumerate(rows[1:], 1):
+    txt = r[0]
+    files = r[1]
+    props = r[2]
+    length = r[3]
+    zh = T.get(txt, '')
+    if not zh:
+        untranslated += 1
+    ws.append([i, txt, zh, files, props, length, ''])
+    row = ws.max_row
+    for col in range(1, 8):
+        ws.cell(row=row, column=col).border = border
+    n += 1
+
+# 列宽
+widths = [6, 46, 34, 42, 18, 12, 20]
+for i, w in enumerate(widths, 1):
+    ws.column_dimensions[chr(64+i)].width = w
+
+# 自动换行
+for row in ws.iter_rows(min_row=2):
+    for c in row:
+        c.alignment = Alignment(vertical='center', wrap_text=True)
+
+# 冻结首行
+ws.freeze_panes = 'A2'
+
+wb.save(OUT)
+print('已生成:', OUT)
+print('总条目:', n, ' 已预填译文:', n - untranslated, ' 留空待补:', untranslated)
